@@ -60,6 +60,7 @@ app.get('/health', async (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/posts', postsRoutes);
 app.use('/uploads/admin', uploadsRoutes); // POST /uploads/admin pra criar upload
+app.use('/uploads', uploadsRoutes);       // compat: POST /uploads em clientes antigos
 app.use('/admin/seed', adminSeedRoutes);  // POST /admin/seed — provisioning (seed token)
 
 // 404 padrão

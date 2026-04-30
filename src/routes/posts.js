@@ -139,7 +139,7 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
   res.status(201).json({ post: rowToPost(row) });
 }));
 
-router.put('/admin/:id', requireEditor, asyncHandler(async (req, res) => {
+async function updatePostById(req, res) {
   const id = req.params.id;
   if (!isUuid(id)) return res.status(400).json({ error: 'invalid_id' });
   const current = await one(`select * from blog_posts where id = $1`, [id]);
@@ -204,7 +204,10 @@ router.put('/admin/:id', requireEditor, asyncHandler(async (req, res) => {
     ],
   );
   res.json({ post: rowToPost(row) });
-}));
+}
+
+router.put('/admin/:id', requireEditor, asyncHandler(updatePostById));
+router.patch('/admin/:id', requireEditor, asyncHandler(updatePostById));
 
 router.delete('/admin/:id', requireAdmin, asyncHandler(async (req, res) => {
   if (!isUuid(req.params.id)) return res.status(400).json({ error: 'invalid_id' });
