@@ -9,14 +9,14 @@ import { seedRateLimit } from '../rateLimit.js';
  * /admin/seed — provisioning endpoint chamado pelo platform backend durante
  * o install do serviço blog-api. Cria a conta admin inicial do blog.
  *
- * Idempotente-safe: se já existe conta com esse email, retorna 409 sem
- * tocar no password_hash. Isso protege contra reinstalação acidental
- * resetar a senha do cliente.
+ * Idempotente-safe: se já existe qualquer usuário, retorna 409 sem criar
+ * outro admin nem tocar no password_hash. Isso protege contra reinstalação
+ * acidental resetar senha ou abrir uma segunda conta administrativa.
  *
  * Autenticação via header X-Seed-Token. Token vem do env SEED_TOKEN
  * (gerado pelo platform junto com o JWT_SECRET e injetado no .env do
- * container). Depois do primeiro seed, o token ainda funciona, mas só
- * pra admins que já existem é necessário resetar senha via CLI.
+ * container). Depois do primeiro seed, novas contas devem ser criadas/resetadas
+ * por fluxo explícito fora deste endpoint.
  */
 const router = Router();
 
@@ -64,6 +64,17 @@ router.post('/', seedRateLimit, asyncHandler(async (req, res) => {
       error: 'user_already_exists',
       message: 'Uma conta com esse email já existe. Use o endpoint de reset de senha (CLI docker exec seed-admin) se precisar trocar a senha.',
       user: { id: existing.id, email: existing.email, created_at: existing.created_at },
+    });
+  }
+
+  const firstUser = await one(
+    `select id, email, created_at from blog_users order by created_at asc limit 1`,
+  );
+  if (firstUser) {
+    return res.status(409).json({
+      error: 'seed_already_completed',
+      message: 'O seed inicial já foi concluído. Crie ou resete admins por um fluxo explícito fora deste endpoint.',
+      user: { id: firstUser.id, email: firstUser.email, created_at: firstUser.created_at },
     });
   }
 

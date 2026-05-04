@@ -44,6 +44,41 @@ function normalizePublication(status, publishedAt) {
   return { error: 'invalid_status' };
 }
 
+function normalizeAssetUrl(value, field) {
+  if (value === undefined) return { provided: false };
+  if (value === null || value === '') return { provided: true, value: null };
+
+  const raw = String(value).trim();
+  if (!raw) return { provided: true, value: null };
+  if (raw.length > 2048) return { error: `${field}_invalid_url` };
+  if (raw.startsWith('/uploads/')) return { provided: true, value: raw };
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol === 'https:') return { provided: true, value: parsed.toString() };
+  } catch {
+    // handled below
+  }
+
+  return { error: `${field}_invalid_url` };
+}
+
+function normalizeSeoPayload(value) {
+  if (value === undefined) return { provided: false };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { provided: true, value: {} };
+  }
+
+  const seo = { ...value };
+  if (seo.ogImage !== undefined) {
+    const normalized = normalizeAssetUrl(seo.ogImage, 'seo_og_image');
+    if (normalized.error) return { error: normalized.error };
+    if (normalized.value) seo.ogImage = normalized.value;
+    else delete seo.ogImage;
+  }
+  return { provided: true, value: seo };
+}
+
 async function publishDueScheduledPosts() {
   await q(
     `update blog_posts
@@ -115,6 +150,10 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
     : (status === 'published' ? new Date() : null);
   const publication = normalizePublication(status, publishedAt);
   if (publication.error) return res.status(400).json({ error: publication.error });
+  const cover = normalizeAssetUrl(body.cover, 'cover');
+  if (cover.error) return res.status(400).json({ error: cover.error });
+  const seo = normalizeSeoPayload(body.seo);
+  if (seo.error) return res.status(400).json({ error: seo.error });
 
   const row = await one(
     `insert into blog_posts
@@ -126,13 +165,13 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
       slug,
       String(body.title).trim(),
       String(body.excerpt || ''),
-      body.cover || null,
+      cover.provided ? cover.value : null,
       sanitizeHtml(body.content),
       String(body.category || ''),
       Array.isArray(body.tags) ? body.tags : [],
       status,
       publication.publishedAt,
-      JSON.stringify(body.seo || {}),
+      JSON.stringify(seo.provided ? seo.value : {}),
       req.user.sub,
     ],
   );
@@ -174,6 +213,10 @@ async function updatePostById(req, res) {
   }
   const publication = normalizePublication(nextStatus, nextPublishedAt);
   if (publication.error) return res.status(400).json({ error: publication.error });
+  const cover = normalizeAssetUrl(body.cover, 'cover');
+  if (cover.error) return res.status(400).json({ error: cover.error });
+  const seo = normalizeSeoPayload(body.seo);
+  if (seo.error) return res.status(400).json({ error: seo.error });
 
   const row = await one(
     `update blog_posts set
@@ -193,13 +236,13 @@ async function updatePostById(req, res) {
       nextSlug,
       nextTitle,
       body.excerpt !== undefined ? String(body.excerpt) : current.excerpt,
-      body.cover !== undefined ? (body.cover || null) : current.cover,
+      cover.provided ? cover.value : current.cover,
       body.content !== undefined ? sanitizeHtml(body.content) : current.content,
       body.category !== undefined ? String(body.category) : current.category,
       Array.isArray(body.tags) ? body.tags : current.tags,
       nextStatus,
       publication.publishedAt,
-      body.seo !== undefined ? JSON.stringify(body.seo) : current.seo,
+      seo.provided ? JSON.stringify(seo.value) : current.seo,
       id,
     ],
   );

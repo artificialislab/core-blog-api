@@ -53,6 +53,17 @@ export function verifyToken(token) {
   }
 }
 
+function tokenTtlToCookieMaxAge(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value * 1000;
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(\d+)\s*(s|m|h|d)$/i);
+  if (!match) return 30 * 24 * 60 * 60 * 1000;
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multipliers = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 };
+  return amount * multipliers[unit];
+}
+
 /**
  * Middleware Express que extrai JWT do cookie OU do Authorization Bearer,
  * verifica, e carrega req.user. Rejeita com 401 se inválido.
@@ -100,7 +111,7 @@ export function setSessionCookie(res, token) {
     httpOnly: true,
     secure: COOKIE_SECURE,
     sameSite: 'lax',
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30d
+    maxAge: tokenTtlToCookieMaxAge(TOKEN_TTL),
     path: '/',
   });
 }
@@ -113,4 +124,4 @@ export async function hashPassword(password) {
   return bcrypt.hash(password, 12);
 }
 
-export const _constants = { COOKIE_NAME, TOKEN_TTL };
+export const _constants = { COOKIE_NAME, TOKEN_TTL, tokenTtlToCookieMaxAge };

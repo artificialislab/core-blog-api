@@ -16,6 +16,7 @@ const SANITIZE_OPTIONS = {
     'li',
     'h2',
     'h3',
+    'h4',
     'hr',
     'a',
     'img',
@@ -23,8 +24,8 @@ const SANITIZE_OPTIONS = {
     'pre',
   ],
   allowedAttributes: {
-    a: ['href', 'target', 'rel', 'title'],
-    img: ['src', 'alt', 'title'],
+    a: ['href', 'target', 'rel', 'title', 'class'],
+    img: ['src', 'alt', 'title', 'class', 'width', 'height', 'loading', 'decoding'],
   },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
   allowedSchemesByTag: {
