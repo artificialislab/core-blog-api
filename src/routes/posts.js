@@ -79,13 +79,28 @@ function normalizeSeoPayload(value) {
   return { provided: true, value: seo };
 }
 
+// Cache curto pra evitar que cada GET público dispare UPDATE no DB. Posts
+// agendados ficam visíveis até PUBLISH_LAZY_INTERVAL_MS após o horário,
+// suficiente pra granularidade humana e elimina abuso via flood de GET.
+const PUBLISH_LAZY_INTERVAL_MS = 30_000;
+let lastPublishRunAt = 0;
+let publishInFlight = null;
+
 async function publishDueScheduledPosts() {
-  await q(
+  const now = Date.now();
+  if (now - lastPublishRunAt < PUBLISH_LAZY_INTERVAL_MS) return;
+  // Serializa runs concorrentes — múltiplos GET simultâneos compartilham o UPDATE.
+  if (publishInFlight) return publishInFlight;
+  publishInFlight = q(
     `update blog_posts
      set status = 'published'
      where status = 'scheduled'
        and published_at <= now()`,
-  );
+  ).finally(() => {
+    lastPublishRunAt = Date.now();
+    publishInFlight = null;
+  });
+  return publishInFlight;
 }
 
 // ───────────────────────────────────────────────────────────────
