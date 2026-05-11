@@ -55,3 +55,59 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             BLOG_API_VERSION=${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+
+  deploy:
+    name: Deploy blog-api containers
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: deploy-core-blog-api-production
+      cancel-in-progress: true
+
+    steps:
+      - name: Deploy on vps-prod
+        uses: appleboy/ssh-action@v1
+        with:
+          host: '195.200.4.22'
+          username: 'root'
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+
+            SHORT_SHA="$(printf '%.7s' "$GITHUB_SHA")"
+            IMAGE="ghcr.io/artificialislab/blog-api:sha-$SHORT_SHA"
+            STACKS="/opt/clients/aline-franca /opt/clients/ana-paula-mafra /opt/clients/carolinacalegari"
+
+            for stack in $STACKS; do
+              [ -f "$stack/docker-compose.yml" ] || { echo "::error::$stack/docker-compose.yml not found"; exit 1; }
+
+              echo "Deploying $IMAGE in $stack"
+              cd "$stack"
+              sed -i "s|image: ghcr.io/artificialislab/blog-api:[^[:space:]]*|image: $IMAGE|" docker-compose.yml
+              if grep -q 'BLOG_API_VERSION=' docker-compose.yml; then
+                sed -i "s|- BLOG_API_VERSION=.*|- BLOG_API_VERSION=$SHORT_SHA|" docker-compose.yml
+              fi
+              docker compose pull blog-api
+              docker compose up -d blog-api
+            done
+
+            for container in aline-blog-api ana-blog-api carolinacalegari-blog-api; do
+              echo "Checking $container"
+              for attempt in $(seq 1 12); do
+                if docker exec "$container" node -e "fetch('http://127.0.0.1:3001/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"; then
+                  docker inspect --format '{{.Name}} {{.State.Health.Status}}' "$container"
+                  break
+                fi
+
+                if [ "$attempt" -eq 12 ]; then
+                  docker logs --tail 80 "$container" || true
+                  exit 1
+                fi
+
+                sleep 5
+              done
+            done
