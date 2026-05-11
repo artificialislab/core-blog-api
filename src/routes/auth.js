@@ -13,6 +13,11 @@ const router = Router();
 
 router.post('/login', loginRateLimit, asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
+  // Coerção defensiva: payloads não-string (objeto/array/numero) explodiriam
+  // dentro do bcrypt.compare. Tratar como credencial inválida em vez de 500.
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'email_and_password_required' });
+  }
   if (!email || !password) {
     return res.status(400).json({ error: 'email_and_password_required' });
   }
