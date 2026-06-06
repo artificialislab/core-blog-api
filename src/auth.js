@@ -4,7 +4,14 @@ import { one } from './db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const COOKIE_NAME = process.env.COOKIE_NAME || 'blog_admin_session';
-const TOKEN_TTL = process.env.TOKEN_TTL || '30d';
+// TOKEN_TTL aceita '30d', '12h' ou segundos puros ('3600' — formato documentado
+// no .env.example). String numérica vira Number: o jsonwebtoken interpreta
+// number como SEGUNDOS, mas string '3600' como 3600ms (vercel/ms) — o que
+// expiraria o token em 3.6s e deixaria o cookie com 30d.
+const TOKEN_TTL_RAW = process.env.TOKEN_TTL || '30d';
+const TOKEN_TTL = /^\d+$/.test(String(TOKEN_TTL_RAW).trim())
+  ? Number(String(TOKEN_TTL_RAW).trim())
+  : TOKEN_TTL_RAW;
 const DUMMY_PASSWORD_HASH = '$2a$12$IU1tNkzYj/BgQ9FsBHt0/.AZC8gr3jaEBKQfk4JqBU.oFUCUCDKBO';
 const COOKIE_SECURE = process.env.COOKIE_SECURE
   ? process.env.COOKIE_SECURE === 'true'
