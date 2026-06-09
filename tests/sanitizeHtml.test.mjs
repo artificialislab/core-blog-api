@@ -22,4 +22,6 @@ test('token TTL parser keeps cookie lifetime aligned with JWT TTL', async () => 
   const { _constants } = await import('../src/auth.js');
   assert.equal(_constants.tokenTtlToCookieMaxAge('12h'), 12 * 60 * 60 * 1000);
   assert.equal(_constants.tokenTtlToCookieMaxAge('7d'), 7 * 24 * 60 * 60 * 1000);
+  // TOKEN_TTL numérico (segundos) — formato documentado no .env.example.
+  assert.equal(_constants.tokenTtlToCookieMaxAge(3600), 3600 * 1000);
 });
