@@ -95,8 +95,10 @@ export class BlogClient {
 
   /**
    * Lista TODOS os posts (qualquer status) via rota admin.
-   * `limit`/`offset` sao honrados pelo servidor; `status`/`category`/`tag`
-   * sao enviados mas ainda nao implementados no backend.
+   * `limit`/`offset` e os filtros `status`/`category`/`tag` sao honrados
+   * pelo servidor. `status` e validado contra draft/scheduled/published
+   * (400 `invalid_status` fora disso); `category` e match exato; `tag`
+   * filtra posts que contenham a tag.
    */
   async listPosts(params: ListPostsParams = {}): Promise<Post[]> {
     const qs = new URLSearchParams();
