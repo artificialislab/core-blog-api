@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { q, one } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { ensureUniqueSlug, slugify } from '../slug.js';
-import { asyncHandler, isUuid, parseOptionalDate } from '../http.js';
+import {
+  asyncHandler, isUuid, parseAdminListFilters, parseOptionalDate, POST_STATUSES,
+} from '../http.js';
 import { sanitizeHtml, sanitizePlainText } from '../sanitizeHtml.js';
 
 const router = Router();
@@ -156,12 +158,18 @@ router.get('/slug/:slug', asyncHandler(async (req, res) => {
 // ───────────────────────────────────────────────────────────────
 
 router.get('/admin/all', requireEditor, asyncHandler(async (req, res) => {
+  // Filtros opcionais que o blog-client-react (listPosts) envia:
+  // status/category/tag. Whitelist + placeholders — sem SQL injection.
+  const filters = parseAdminListFilters(req.query);
+  if (filters.error) return res.status(400).json({ error: filters.error });
   const { limit, offset } = parsePagination(req.query);
+  const whereSql = filters.where.length ? `where ${filters.where.join(' and ')}` : '';
   const rows = await q(
     `select * from blog_posts
+     ${whereSql}
      order by coalesce(published_at, updated_at) desc
-     limit $1 offset $2`,
-    [limit, offset],
+     limit $${filters.params.length + 1} offset $${filters.params.length + 2}`,
+    [...filters.params, limit, offset],
   );
   res.json({ posts: rows.map(rowToPost) });
 }));
@@ -179,7 +187,7 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'title_required' });
   }
   const slug = await ensureUniqueSlug(body.slug || body.title);
-  const status = ['draft', 'scheduled', 'published'].includes(body.status) ? body.status : 'draft';
+  const status = POST_STATUSES.includes(body.status) ? body.status : 'draft';
   const parsedPublishedAt = parseOptionalDate(body.publishedAt);
   if (parsedPublishedAt.error) return res.status(400).json({ error: parsedPublishedAt.error });
   const publishedAt = parsedPublishedAt.provided
@@ -236,7 +244,7 @@ async function updatePostById(req, res) {
     }
   }
 
-  const nextStatus = ['draft', 'scheduled', 'published'].includes(body.status)
+  const nextStatus = POST_STATUSES.includes(body.status)
     ? body.status
     : current.status;
 
