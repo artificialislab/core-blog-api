@@ -37,7 +37,6 @@ async function run() {
      on conflict ((lower(email))) do update set
        password_hash = excluded.password_hash,
        name = excluded.name,
-       role = 'admin',
        updated_at = now()
      returning id, email, name, role, created_at`,
     [email.trim().toLowerCase(), hash, name],

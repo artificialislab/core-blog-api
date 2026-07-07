@@ -44,3 +44,14 @@ const SANITIZE_OPTIONS = {
 export function sanitizeHtml(input) {
   return sanitizeHtmlLibrary(String(input || ''), SANITIZE_OPTIONS);
 }
+
+// Texto puro: remove QUALQUER tag/atributo. Para campos que nunca devem
+// conter HTML (excerpt, seo.title, seo.description).
+const PLAIN_TEXT_OPTIONS = {
+  allowedTags: [],
+  allowedAttributes: {},
+};
+
+export function sanitizePlainText(input) {
+  return sanitizeHtmlLibrary(String(input || ''), PLAIN_TEXT_OPTIONS);
+}

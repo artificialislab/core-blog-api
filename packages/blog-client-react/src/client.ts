@@ -93,6 +93,11 @@ export class BlogClient {
 
   // ─── Posts admin (cookie httpOnly) ────────────────────────────────────
 
+  /**
+   * Lista TODOS os posts (qualquer status) via rota admin.
+   * `limit`/`offset` sao honrados pelo servidor; `status`/`category`/`tag`
+   * sao enviados mas ainda nao implementados no backend.
+   */
   async listPosts(params: ListPostsParams = {}): Promise<Post[]> {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
@@ -101,19 +106,21 @@ export class BlogClient {
     if (params.category) qs.set("category", params.category);
     if (params.tag) qs.set("tag", params.tag);
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
-    const { posts } = await this.req<{ posts: Post[] }>(`/posts${suffix}`);
+    const { posts } = await this.req<{ posts: Post[] }>(
+      `/posts/admin/all${suffix}`,
+    );
     return posts;
   }
 
   async getPost(id: string): Promise<Post> {
     const { post } = await this.req<{ post: Post }>(
-      `/posts/${encodeURIComponent(id)}`,
+      `/posts/admin/${encodeURIComponent(id)}`,
     );
     return post;
   }
 
   async createPost(input: Partial<Post>): Promise<Post> {
-    const { post } = await this.req<{ post: Post }>(`/posts`, {
+    const { post } = await this.req<{ post: Post }>(`/posts/admin`, {
       method: "POST",
       body: input,
     });
@@ -122,14 +129,14 @@ export class BlogClient {
 
   async updatePost(id: string, patch: Partial<Post>): Promise<Post> {
     const { post } = await this.req<{ post: Post }>(
-      `/posts/${encodeURIComponent(id)}`,
+      `/posts/admin/${encodeURIComponent(id)}`,
       { method: "PATCH", body: patch },
     );
     return post;
   }
 
   async deletePost(id: string): Promise<void> {
-    await this.req<void>(`/posts/${encodeURIComponent(id)}`, {
+    await this.req<void>(`/posts/admin/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
   }
