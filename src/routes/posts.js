@@ -3,7 +3,7 @@ import { q, one } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { ensureUniqueSlug, slugify } from '../slug.js';
 import { asyncHandler, isUuid, parseOptionalDate } from '../http.js';
-import { sanitizeHtml } from '../sanitizeHtml.js';
+import { sanitizeHtml, sanitizePlainText } from '../sanitizeHtml.js';
 
 const router = Router();
 const requireEditor = [requireAuth, requireRole('admin', 'editor')];
@@ -70,6 +70,11 @@ function normalizeSeoPayload(value) {
   }
 
   const seo = { ...value };
+  // Campos textuais do SEO nunca carregam HTML — sanitiza como texto puro.
+  if (typeof seo.title === 'string') seo.title = sanitizePlainText(seo.title);
+  if (typeof seo.description === 'string') {
+    seo.description = sanitizePlainText(seo.description);
+  }
   if (seo.ogImage !== undefined) {
     const normalized = normalizeAssetUrl(seo.ogImage, 'seo_og_image');
     if (normalized.error) return { error: normalized.error };
@@ -77,6 +82,17 @@ function normalizeSeoPayload(value) {
     else delete seo.ogImage;
   }
   return { provided: true, value: seo };
+}
+
+/** Paginacao com clamp: limit default 50 (max 100), offset default 0. */
+function parsePagination(query = {}) {
+  const parsedLimit = Number.parseInt(query.limit, 10);
+  const parsedOffset = Number.parseInt(query.offset, 10);
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(Math.max(parsedLimit, 1), 100)
+    : 50;
+  const offset = Number.isFinite(parsedOffset) ? Math.max(parsedOffset, 0) : 0;
+  return { limit, offset };
 }
 
 // Cache curto pra evitar que cada GET público dispare UPDATE no DB. Posts
@@ -107,13 +123,16 @@ async function publishDueScheduledPosts() {
 // PÚBLICO — só retorna posts com status=published e data passada
 // ───────────────────────────────────────────────────────────────
 
-router.get('/', asyncHandler(async (_req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   await publishDueScheduledPosts();
+  const { limit, offset } = parsePagination(req.query);
   const rows = await q(
     `select * from blog_posts
      where status = 'published'
        and (published_at is null or published_at <= now())
-     order by coalesce(published_at, updated_at) desc`,
+     order by coalesce(published_at, updated_at) desc
+     limit $1 offset $2`,
+    [limit, offset],
   );
   res.json({ posts: rows.map(rowToPost) });
 }));
@@ -136,10 +155,13 @@ router.get('/slug/:slug', asyncHandler(async (req, res) => {
 // ADMIN — requer JWT autenticado, enxerga TUDO
 // ───────────────────────────────────────────────────────────────
 
-router.get('/admin/all', requireEditor, asyncHandler(async (_req, res) => {
+router.get('/admin/all', requireEditor, asyncHandler(async (req, res) => {
+  const { limit, offset } = parsePagination(req.query);
   const rows = await q(
     `select * from blog_posts
-     order by coalesce(published_at, updated_at) desc`,
+     order by coalesce(published_at, updated_at) desc
+     limit $1 offset $2`,
+    [limit, offset],
   );
   res.json({ posts: rows.map(rowToPost) });
 }));
@@ -179,7 +201,7 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
     [
       slug,
       String(body.title).trim(),
-      String(body.excerpt || ''),
+      sanitizePlainText(body.excerpt),
       cover.provided ? cover.value : null,
       sanitizeHtml(body.content),
       String(body.category || ''),
@@ -250,7 +272,7 @@ async function updatePostById(req, res) {
     [
       nextSlug,
       nextTitle,
-      body.excerpt !== undefined ? String(body.excerpt) : current.excerpt,
+      body.excerpt !== undefined ? sanitizePlainText(body.excerpt) : current.excerpt,
       cover.provided ? cover.value : current.cover,
       body.content !== undefined ? sanitizeHtml(body.content) : current.content,
       body.category !== undefined ? String(body.category) : current.category,
