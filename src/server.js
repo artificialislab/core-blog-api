@@ -7,6 +7,8 @@ import authRoutes from './routes/auth.js';
 import postsRoutes from './routes/posts.js';
 import uploadsRoutes from './routes/uploads.js';
 import adminSeedRoutes from './routes/admin-seed.js';
+import seoRoutes from './routes/seo.js';
+import { startSeoRefreshLoop } from './seo/refresh.js';
 import { pool } from './db.js';
 
 const app = express();
@@ -76,6 +78,7 @@ app.use('/posts', postsRoutes);
 app.use('/uploads/admin', uploadsRoutes); // POST /uploads/admin pra criar upload
 app.use('/uploads', uploadsRoutes);       // compat: POST /uploads em clientes antigos
 app.use('/admin/seed', adminSeedRoutes);  // POST /admin/seed — provisioning (seed token)
+app.use('/seo/admin', seoRoutes);         // GET /seo/admin/status, POST /seo/admin/refresh
 
 // 404 padrão
 app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
@@ -104,4 +107,7 @@ app.use((err, _req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
   console.log(`[api] listening on :${PORT}  upload_dir=${UPLOAD_DIR}`);
+  // Regera sitemap/llms/HTML dos artigos a partir do estado atual do banco.
+  // No-op quando SEO_SITE_DIR nao esta setado (sites ainda nao migrados).
+  startSeoRefreshLoop();
 });

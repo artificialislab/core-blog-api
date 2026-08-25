@@ -6,30 +6,12 @@ import {
   asyncHandler, isUuid, parseAdminListFilters, parseOptionalDate, POST_STATUSES,
 } from '../http.js';
 import { sanitizeHtml, sanitizePlainText } from '../sanitizeHtml.js';
+import { rowToPost } from '../postShape.js';
+import { scheduleSeoRefresh } from '../seo/refresh.js';
 
 const router = Router();
 const requireEditor = [requireAuth, requireRole('admin', 'editor')];
 const requireAdmin = [requireAuth, requireRole('admin')];
-
-/** Converte row snake_case do DB pro shape camelCase que o frontend TS espera. */
-function rowToPost(r) {
-  if (!r) return null;
-  return {
-    id: r.id,
-    slug: r.slug,
-    title: r.title,
-    excerpt: r.excerpt,
-    cover: r.cover,
-    content: r.content,
-    category: r.category,
-    tags: r.tags || [],
-    status: r.status,
-    publishedAt: r.published_at ? new Date(r.published_at).toISOString() : undefined,
-    createdAt: new Date(r.created_at).toISOString(),
-    updatedAt: new Date(r.updated_at).toISOString(),
-    seo: r.seo || {},
-  };
-}
 
 function normalizePublication(status, publishedAt) {
   const now = new Date();
@@ -113,8 +95,14 @@ async function publishDueScheduledPosts() {
     `update blog_posts
      set status = 'published'
      where status = 'scheduled'
-       and published_at <= now()`,
-  ).finally(() => {
+       and published_at <= now()
+     returning id`,
+  ).then((rows) => {
+    // Post agendado que venceu vira conteudo novo no ar: o sitemap e o HTML
+    // pre-renderizado precisam refletir isso sem esperar o proximo deploy.
+    if (rows.length) scheduleSeoRefresh('scheduled-published');
+    return rows;
+  }).finally(() => {
     lastPublishRunAt = Date.now();
     publishInFlight = null;
   });
@@ -220,6 +208,7 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
       req.user.sub,
     ],
   );
+  scheduleSeoRefresh('post-created');
   res.status(201).json({ post: rowToPost(row) });
 }));
 
@@ -291,6 +280,7 @@ async function updatePostById(req, res) {
       id,
     ],
   );
+  scheduleSeoRefresh('post-updated');
   res.json({ post: rowToPost(row) });
 }
 
@@ -301,6 +291,7 @@ router.delete('/admin/:id', requireAdmin, asyncHandler(async (req, res) => {
   if (!isUuid(req.params.id)) return res.status(400).json({ error: 'invalid_id' });
   const row = await one(`delete from blog_posts where id = $1 returning id`, [req.params.id]);
   if (!row) return res.status(404).json({ error: 'not_found' });
+  scheduleSeoRefresh('post-deleted');
   res.json({ deleted: row.id });
 }));
 
