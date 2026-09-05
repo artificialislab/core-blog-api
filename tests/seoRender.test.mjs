@@ -155,3 +155,17 @@ test('selectPublicPosts e o mesmo filtro usado em toda a geracao', () => {
   const locs = [...buildSitemap(CONFIG, posts).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   assert.deepEqual(locs.filter((loc) => loc.includes('/blog/')), ['https://exemplo.com.br/blog/artigo-um']);
 });
+
+
+test('runtime preserva o payload usado pelos clientes sem rede e remove HTML executável', () => {
+  const article = post({ title: 'Texto </script><script>alert(1)</script>', content: '<p>Texto público</p><img src="/cover.jpg" onerror="alert(1)"><script>alert(1)</script>' });
+  const html = buildPostHtml(TEMPLATE, CONFIG, article);
+  const raw = html.match(/<script type="application\/json" id="__artificialis_post__">([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(raw, 'payload obrigatório para não voltar ao skeleton depois do runtime');
+  const embedded = JSON.parse(raw);
+  assert.equal(embedded.slug, article.slug);
+  assert.match(embedded.content, /Texto público/);
+  assert.doesNotMatch(embedded.content, /onerror|<script/);
+  assert.doesNotMatch(raw, /<\/script>/);
+  assert.doesNotMatch(html, /<script>alert/);
+});

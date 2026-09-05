@@ -1,3 +1,5 @@
+import { sanitizeHtml } from '../sanitizeHtml.js';
+
 /**
  * Geração dos artefatos de SEO derivados do blog.
  *
@@ -358,7 +360,7 @@ export function buildPostBody(config, post) {
             <h1 style="font-size:2rem;font-weight:700;margin:0 0 1rem;line-height:1.2">${escapeHtml(post.title)}</h1>
             ${isoDate ? `<p style="font-size:0.875rem;${MUTED};margin:0 0 1.5rem"><time datetime="${escapeHtml(isoDate)}">${escapeHtml(formatDate(published, config.locale))}</time></p>` : ''}
             <p style="font-size:1.125rem;opacity:0.9;margin:0 0 2rem">${escapeHtml(stripMarkup(post.excerpt))}</p>
-            <div>${post.content || ''}</div>
+            <div>${sanitizeHtml(post.content)}</div>
           </article>
           <p style="margin:2.5rem 0 0;font-size:0.875rem;${MUTED}">
             <a href="${escapeHtml(canonical)}" style="color:inherit">${escapeHtml(canonical)}</a>
@@ -411,7 +413,7 @@ export function buildPostHtml(template, config, post) {
   const title =
     post?.seo?.metaTitle || (suffix && post.title.length <= maxBase ? `${post.title} ${suffix}`.trim() : post.title);
 
-  return buildRouteHtml(template, config, {
+  const html = buildRouteHtml(template, config, {
     title,
     description: post?.seo?.metaDescription || post.excerpt,
     canonical,
@@ -423,6 +425,9 @@ export function buildPostHtml(template, config, post) {
     jsonLd: articleSchema(config, post, canonical, image),
     body: buildPostBody(config, post),
   });
+  const payload = { ...post, content: sanitizeHtml(post.content) };
+  return html.replace(/<script\b[^>]*\bid=["']__artificialis_post__["'][^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace('</head>', () => `<script type="application/json" id="__artificialis_post__">${safeJson(payload)}</script></head>`);
 }
 
 export function buildBlogIndexHtml(template, config, posts) {
