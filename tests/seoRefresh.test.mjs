@@ -183,8 +183,12 @@ test('remocao em massa e bloqueada: reescreve os arquivos mas nao apaga pasta ne
   for (let i = 2; i < 10; i++) {
     assert.equal(await exists(join(dir, `blog/artigo-${i}/index.html`)), true, `artigo-${i} preservado`);
   }
-  // O sitemap ja reflete a verdade, entao o Google para de indexar os que
-  // sairam mesmo com os arquivos ainda no disco.
+  const manifest = JSON.parse(await readFile(join(dir, '.seo-manifest.json'), 'utf8'));
+  assert.equal(manifest.slugs.length, 10, 'arquivos preservados continuam rastreados');
+  const retry = await refreshSeoNow('interval', { loadPosts: async () => dez.slice(0, 7) });
+  assert.equal(retry.removed, 3, 'reconcilia quando a lista volta a um estado seguro');
+  assert.equal(await exists(join(dir, 'blog/artigo-9')), false);
+  // A ausencia no sitemap sozinha nao garante desindexacao.
   const sitemap = await readFile(join(dir, 'sitemap.xml'), 'utf8');
   assert.ok(!sitemap.includes('/blog/artigo-9'));
 });
@@ -220,4 +224,15 @@ test('a poda nunca alcanca caminho fora de <site>/blog/', async () => {
 
   assert.equal(await exists(join(dir, 'index.html')), true);
   assert.equal(await exists(join(dir, 'index-sentinela.html')), true);
+});
+
+ test('alterar apenas config regenera canonical e metadados no intervalo', async () => {
+  const dir = await makeSite();
+  const posts = [post('artigo-um')];
+  await refreshSeoNow('interval', { loadPosts: async () => posts });
+  await writeFile(join(dir, 'seo.config.json'), JSON.stringify({ ...CONFIG, siteUrl: 'https://novo.exemplo.com.br' }));
+  resetSeoConfigCache();
+  const result = await refreshSeoNow('interval', { loadPosts: async () => posts });
+  assert.equal(result.posts, 1);
+  assert.match(await readFile(join(dir, 'sitemap.xml'), 'utf8'), /https:\/\/novo.exemplo.com.br/);
 });

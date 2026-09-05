@@ -89,7 +89,7 @@ async function pruneRemovedPosts(siteDir, blogPath, previousSlugs, currentSlugs)
   if (stale.length > ceiling) {
     warn(
       `remocao de ${stale.length} de ${previousSlugs.length} artigos parece anormal (teto ${ceiling}) — ` +
-      'arquivos reescritos, NENHUMA pasta apagada. Se a despublicacao foi intencional, rode de novo ' +
+      'arquivos reescritos, NENHUMA pasta apagada. Se a despublicacao foi intencional, revise os slugs ' +
       'ou suba SEO_PRUNE_MAX_RATIO.',
     );
     return { removed: [], blocked: true };
@@ -172,7 +172,7 @@ export async function refreshSeoNow(reason = 'manual', deps = {}) {
   // index.html sem mudar nenhum post, e o HTML dos artigos precisa ser
   // regerado em cima do template novo (bundle novo, tags novas).
   const { mtimeMs: templateMtime } = await stat(templatePath);
-  const signature = `${templateMtime}#${signatureOf(posts)}`;
+  const signature = `${siteDir}#${templateMtime}#${JSON.stringify(config)}#${signatureOf(posts)}`;
   if (reason === 'interval' && signature === lastSignature) return { skipped: 'sem mudanças' };
 
   // Trava dura: lista vazia nunca reescreve nada.
@@ -204,15 +204,19 @@ export async function refreshSeoNow(reason = 'manual', deps = {}) {
   const previousSlugs = await readManifest(siteDir);
   const { removed, blocked } = await pruneRemovedPosts(siteDir, config.blog.path, previousSlugs, slugs);
 
+  const retainedSlugs = blocked ? [...new Set([...slugs, ...previousSlugs.filter((slug) => SLUG_RE.test(slug))])] : slugs;
+
+  // O manifest preserva slugs cuja remocao foi bloqueada para permitir
+  // reconciliacao posterior, sem abandonar arquivos antigos para sempre.
   // O manifest so registra o que a API de fato escreveu — nunca as pastas que
   // o build deixou para tras. E o que garante que a poda jamais alcance um
   // arquivo que nao foi ela quem criou.
   await writeAtomic(
     join(siteDir, MANIFEST_FILENAME),
-    `${JSON.stringify({ generatedAt: new Date().toISOString(), reason, slugs }, null, 2)}\n`,
+    `${JSON.stringify({ generatedAt: new Date().toISOString(), reason, slugs: retainedSlugs }, null, 2)}\n`,
   );
 
-  lastSignature = signature;
+  lastSignature = blocked ? null : signature;
   const result = {
     posts: posts.length,
     urls: countSitemapEntries(sitemap),
