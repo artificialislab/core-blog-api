@@ -12,6 +12,7 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { normalizeServiceLinks } from './serviceLinks.js';
 
 export const SEO_CONFIG_FILENAME = 'seo.config.json';
 
@@ -62,6 +63,7 @@ export function normalizeSeoConfig(raw) {
       title: raw.blog?.title || 'Blog',
       metaTitle: raw.blog?.metaTitle || '',
       description: raw.blog?.description || '',
+      serviceLinks: normalizeServiceLinks(raw.blog?.serviceLinks, staticRoutes),
     },
     staticRoutes,
     llms: raw.llms && typeof raw.llms === 'object' ? raw.llms : null,

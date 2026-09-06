@@ -1,4 +1,5 @@
 import { sanitizeHtml } from '../sanitizeHtml.js';
+import { selectServiceLinks } from './serviceLinks.js';
 
 /**
  * Geração dos artefatos de SEO derivados do blog.
@@ -345,6 +346,15 @@ const formatDate = (value, locale = 'pt-BR') => {
   }
 };
 
+export function buildRelatedServices(config, post) {
+  const links = selectServiceLinks(config, post);
+  if (!links.length) return '';
+  return `<section aria-labelledby="related-services-title" style="margin-top:2rem">
+            <h2 id="related-services-title" style="font-size:1.25rem;line-height:1.3">Atendimento relacionado</h2>
+            <ul>${links.map((link) => `<li><a href="${escapeHtml(link.path)}" style="color:inherit">${escapeHtml(link.label)}</a></li>`).join('')}</ul>
+          </section>`;
+}
+
 export function buildPostBody(config, post) {
   const canonical = postUrl(config, post.slug);
   const published = post.publishedAt || post.createdAt;
@@ -361,7 +371,7 @@ export function buildPostBody(config, post) {
             ${isoDate ? `<p style="font-size:0.875rem;${MUTED};margin:0 0 1.5rem"><time datetime="${escapeHtml(isoDate)}">${escapeHtml(formatDate(published, config.locale))}</time></p>` : ''}
             <p style="font-size:1.125rem;opacity:0.9;margin:0 0 2rem">${escapeHtml(stripMarkup(post.excerpt))}</p>
             <div>${sanitizeHtml(post.content)}</div>
-          </article>
+          </article>${buildRelatedServices(config, post)}
           <p style="margin:2.5rem 0 0;font-size:0.875rem;${MUTED}">
             <a href="${escapeHtml(canonical)}" style="color:inherit">${escapeHtml(canonical)}</a>
           </p>
