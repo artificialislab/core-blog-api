@@ -68,6 +68,14 @@ function normalizeSeoPayload(value) {
   return { provided: true, value: seo };
 }
 
+/**
+ * tags vira coluna text[]: elemento nao-string (objeto, array aninhado,
+ * numero) fazia o pg rejeitar o array literal e a rota devolvia 500.
+ */
+function hasInvalidTags(value) {
+  return Array.isArray(value) && value.some((tag) => typeof tag !== 'string');
+}
+
 /** Paginacao com clamp: limit default 50 (max 100), offset default 0. */
 function parsePagination(query = {}) {
   const parsedLimit = Number.parseInt(query.limit, 10);
@@ -187,6 +195,7 @@ router.post('/admin', requireEditor, asyncHandler(async (req, res) => {
   if (cover.error) return res.status(400).json({ error: cover.error });
   const seo = normalizeSeoPayload(body.seo);
   if (seo.error) return res.status(400).json({ error: seo.error });
+  if (hasInvalidTags(body.tags)) return res.status(400).json({ error: 'invalid_tags' });
 
   const row = await one(
     `insert into blog_posts
@@ -251,6 +260,7 @@ async function updatePostById(req, res) {
   if (cover.error) return res.status(400).json({ error: cover.error });
   const seo = normalizeSeoPayload(body.seo);
   if (seo.error) return res.status(400).json({ error: seo.error });
+  if (hasInvalidTags(body.tags)) return res.status(400).json({ error: 'invalid_tags' });
 
   const row = await one(
     `update blog_posts set
