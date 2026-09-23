@@ -2,10 +2,10 @@
 # Artificialis Lab — Blog API (imagem genérica)
 #
 # Provisionada automaticamente pelo platform backend no stack de qualquer
-# cliente que subscribe "blog". Node 20 alpine, production only. Roda
+# cliente que subscribe "blog". Node 22 alpine, production only. Roda
 # migrações idempotentes no startup antes do express subir.
 # ============================================================================
-FROM node:20-alpine
+FROM node:22-alpine
 
 ARG BLOG_API_VERSION=dev
 
