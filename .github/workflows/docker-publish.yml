@@ -1,6 +1,8 @@
 name: Build and publish Docker image
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -9,6 +11,7 @@ env:
 
 jobs:
   build-and-push:
+    if: github.event_name != 'push' || (vars.AUTO_DEPLOY_ENABLED == 'true' && vars.DEPLOY_TRANSPORT == 'actions')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -57,12 +60,14 @@ jobs:
   deploy:
     name: Deploy blog-api containers
     needs: build-and-push
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.AUTO_DEPLOY_ENABLED == 'true' && vars.DEPLOY_TRANSPORT == 'actions'))
     runs-on: ubuntu-latest
     environment: production
+    env:
+      DEPLOY_SHA: ${{ github.sha }}
     concurrency:
       group: deploy-core-blog-api-production
-      cancel-in-progress: true
+      cancel-in-progress: false
 
     steps:
       - name: Deploy on vps-prod
@@ -72,11 +77,11 @@ jobs:
           username: 'root'
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 10m
-          envs: GITHUB_SHA
+          envs: DEPLOY_SHA
           script: |
             set -euo pipefail
 
-            SHORT_SHA="$(printf '%.7s' "$GITHUB_SHA")"
+            SHORT_SHA="$(printf '%.7s' "$DEPLOY_SHA")"
             IMAGE="ghcr.io/artificialislab/blog-api:sha-$SHORT_SHA"
             STACKS="/opt/clients/aline-franca /opt/clients/ana-paula-mafra /opt/clients/carolinacalegari"
 
