@@ -28,6 +28,15 @@ export function isSeoEnabled() {
   return Boolean(getSiteDir());
 }
 
+// Identificação visível é opcional e pertence à configuração de cada site.
+// Sem os três campos explícitos, não inferimos profissão ou registro da marca.
+function normalizeProfessionalIdentity(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const fields = ['name', 'profession', 'registration'];
+  if (!fields.every((key) => typeof value[key] === 'string' && value[key].trim())) return null;
+  return Object.fromEntries(fields.map((key) => [key, value[key].trim()]));
+}
+
 /** Normaliza e valida o config, preenchendo defaults seguros. */
 export function normalizeSeoConfig(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('seo.config.json não é um objeto');
@@ -51,6 +60,7 @@ export function normalizeSeoConfig(raw) {
     siteUrl,
     locale: raw.locale || 'pt-BR',
     brandName: raw.brandName || '',
+    professionalIdentity: normalizeProfessionalIdentity(raw.professionalIdentity),
     homeLabel: raw.homeLabel || 'Início',
     defaultImage: raw.defaultImage || '',
     indexRobots: raw.indexRobots || '',
