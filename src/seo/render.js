@@ -355,10 +355,19 @@ export function buildRelatedServices(config, post) {
           </section>`;
 }
 
+function professionalIdentityHtml(config) {
+  const identity = config.professionalIdentity;
+  if (!identity) return '';
+  const fields = [identity.name, identity.profession, identity.registration];
+  if (!fields.every((value) => typeof value === 'string' && value.trim())) return '';
+  return `<p data-professional-identity="true">${fields.map(escapeHtml).join(' · ')}</p>`;
+}
+
 export function buildPostBody(config, post) {
   const canonical = postUrl(config, post.slug);
   const published = post.publishedAt || post.createdAt;
   const isoDate = validDate(published) || '';
+  const identification = professionalIdentityHtml(config);
   return `${FALLBACK_MARKER}
       <div style="${SHELL_STYLE}">
         <div style="${WRAP_STYLE}">
@@ -369,7 +378,7 @@ export function buildPostBody(config, post) {
           <article>
             <h1 style="font-size:2rem;font-weight:700;margin:0 0 1rem;line-height:1.2">${escapeHtml(post.title)}</h1>
             ${isoDate ? `<p style="font-size:0.875rem;${MUTED};margin:0 0 1.5rem"><time datetime="${escapeHtml(isoDate)}">${escapeHtml(formatDate(published, config.locale))}</time></p>` : ''}
-            <p style="font-size:1.125rem;opacity:0.9;margin:0 0 2rem">${escapeHtml(stripMarkup(post.excerpt))}</p>
+            ${identification ? identification + "\n            " : ""}<p style="font-size:1.125rem;opacity:0.9;margin:0 0 2rem">${escapeHtml(stripMarkup(post.excerpt))}</p>
             <div>${sanitizeHtml(post.content)}</div>
           </article>${buildRelatedServices(config, post)}
           <p style="margin:2.5rem 0 0;font-size:0.875rem;${MUTED}">
@@ -386,6 +395,7 @@ export function buildPostBody(config, post) {
  * sitemap virava o único caminho de descoberta.
  */
 export function buildBlogIndexBody(config, posts) {
+  const identification = professionalIdentityHtml(config);
   const items = selectPublicPosts(posts)
     .sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))
     .map((post) => {
@@ -405,7 +415,7 @@ export function buildBlogIndexBody(config, posts) {
         <div style="${WRAP_STYLE}">
           <h1 style="font-size:2rem;font-weight:700;margin:0 0 0.75rem;line-height:1.2">${escapeHtml(config.blog?.title || 'Blog')}</h1>
           <p style="font-size:1.0625rem;opacity:0.85;margin:0 0 2.5rem">${escapeHtml(config.blog?.description || '')}</p>
-          <ul style="list-style:none;padding:0;margin:0">
+          ${identification ? identification + "\n          " : ""}<ul style="list-style:none;padding:0;margin:0">
 ${items}
           </ul>
         </div>
