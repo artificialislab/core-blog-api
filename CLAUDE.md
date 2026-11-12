@@ -6,12 +6,6 @@ Siga o mesmo fluxo operacional usado pelo Codex.
 alterar local -> testar -> commit -> push GitHub -> deploy VPS
 ```
 
-Nao acessar VPS, editar producao, reiniciar servicos ou manipular credenciais sem autorizacao explicita do Andre para a tarefa atual.
-
-Frase obrigatoria:
-
-```text
-Autorizo acesso direto a VPS [alias] para [objetivo].
-```
+Producao e VPS: so pelo caminho de publicacao da equipe (o agente Integrador integra na `main`, o agente Publicador publica), como descrito em `AGENTS.md` e em `lab-ops/runbooks/publicacao-integrador-publicador.md`. Credenciais e acao destrutiva: so com ok do Andre.
 
 Nunca ler, imprimir, copiar ou versionar secrets.
