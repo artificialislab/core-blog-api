@@ -45,7 +45,11 @@ const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$
 export const stripMarkup = (value) =>
   String(value || '')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/[#*_>`-]/g, ' ')
+    // Marcadores de Markdown: lista/citação no início da linha e réguas.
+    // Hífen dentro de palavra ("fazê-los", "buco-maxilo-facial") fica.
+    .replace(/^[ \t]*(?:[-+*]|>)[ \t]+/gm, ' ')
+    .replace(/-{2,}/g, ' ')
+    .replace(/[#*_>`]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
