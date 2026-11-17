@@ -169,3 +169,12 @@ test('runtime preserva o payload usado pelos clientes sem rede e remove HTML exe
   assert.doesNotMatch(raw, /<\/script>/);
   assert.doesNotMatch(html, /<script>alert/);
 });
+
+test('stripMarkup preserva hífen dentro de palavra e remove marcadores', async () => {
+  const { stripMarkup, truncateAtWord } = await import('../src/seo/render.js');
+  assert.equal(stripMarkup('É importante fazê-los cedo.'), 'É importante fazê-los cedo.');
+  assert.equal(stripMarkup('<p>Cirurgia buco-maxilo-facial</p>'), 'Cirurgia buco-maxilo-facial');
+  assert.equal(stripMarkup('- item um\n- item dois'), 'item um item dois');
+  assert.equal(stripMarkup('# Título\n\n---\n> citação **forte**'), 'Título citação forte');
+  assert.equal(truncateAtWord('fazê-los '.repeat(30), 40).includes('fazê-los'), true);
+});

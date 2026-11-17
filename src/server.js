@@ -12,6 +12,7 @@ import { startSeoRefreshLoop } from './seo/refresh.js';
 import { pool } from './db.js';
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = Number(process.env.PORT || 3001);
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/uploads';
 
