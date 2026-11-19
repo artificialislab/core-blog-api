@@ -3,10 +3,10 @@ import { q, one } from '../db.js';
 import { requireAuth, requireRole } from '../auth.js';
 import { ensureUniqueSlug, slugify } from '../slug.js';
 import {
-  asyncHandler, isUuid, parseAdminListFilters, parseOptionalDate, POST_STATUSES,
+  asyncHandler, isSummaryQuery, isUuid, parseAdminListFilters, parseOptionalDate, POST_STATUSES,
 } from '../http.js';
 import { sanitizeHtml, sanitizePlainText } from '../sanitizeHtml.js';
-import { rowToPost } from '../postShape.js';
+import { SUMMARY_COLUMNS, rowToPost, rowToSummaryPost } from '../postShape.js';
 import { scheduleSeoRefresh } from '../seo/refresh.js';
 
 const router = Router();
@@ -124,15 +124,18 @@ async function publishDueScheduledPosts() {
 router.get('/', asyncHandler(async (req, res) => {
   await publishDueScheduledPosts();
   const { limit, offset } = parsePagination(req.query);
+  const summary = isSummaryQuery(req.query);
+  const columns = summary ? SUMMARY_COLUMNS : '*';
   const rows = await q(
-    `select * from blog_posts
+    `select ${columns} from blog_posts
      where status = 'published'
        and (published_at is null or published_at <= now())
      order by coalesce(published_at, updated_at) desc
      limit $1 offset $2`,
     [limit, offset],
   );
-  res.json({ posts: rows.map(rowToPost) });
+  res.set('Cache-Control', 'public, no-cache');
+  res.json({ posts: rows.map(summary ? rowToSummaryPost : rowToPost) });
 }));
 
 router.get('/slug/:slug', asyncHandler(async (req, res) => {
@@ -146,6 +149,7 @@ router.get('/slug/:slug', asyncHandler(async (req, res) => {
     [req.params.slug],
   );
   if (!row) return res.status(404).json({ error: 'not_found' });
+  res.set('Cache-Control', 'public, no-cache');
   res.json({ post: rowToPost(row) });
 }));
 

@@ -336,9 +336,18 @@ export function articleSchema(config, post, canonical, image) {
 // título, resumo, data e TEXTO DO ARTIGO cheguem no HTML inicial — antes era
 // só um spinner, e o Google precisava renderizar JS para ver qualquer coisa.
 
-const SHELL_STYLE = 'min-height:100vh;background:#0a0a0a;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:2rem 1.25rem';
+const SHELL_STYLE_DARK = 'min-height:100vh;background:#0a0a0a;color:#f5f5f5;font-family:system-ui,-apple-system,sans-serif;padding:2rem 1.25rem';
+const SHELL_STYLE_LIGHT = 'min-height:100vh;background:#ffffff;color:#1c1c1c;font-family:system-ui,-apple-system,sans-serif;padding:2rem 1.25rem';
 const WRAP_STYLE = 'max-width:720px;margin:0 auto;line-height:1.65';
-const MUTED = 'color:#a8a8a8';
+const MUTED_DARK = 'color:#a8a8a8';
+const MUTED_LIGHT = 'color:#595959';
+
+function resolveFallbackPalette(config) {
+  if (config?.fallbackTheme === 'light') {
+    return { shell: SHELL_STYLE_LIGHT, muted: MUTED_LIGHT };
+  }
+  return { shell: SHELL_STYLE_DARK, muted: MUTED_DARK };
+}
 
 const formatDate = (value, locale = 'pt-BR') => {
   const date = new Date(value || '');
@@ -368,6 +377,7 @@ function professionalIdentityHtml(config) {
 }
 
 export function buildPostBody(config, post) {
+  const { shell: SHELL_STYLE, muted: MUTED } = resolveFallbackPalette(config);
   const canonical = postUrl(config, post.slug);
   const published = post.publishedAt || post.createdAt;
   const isoDate = validDate(published) || '';
@@ -399,6 +409,7 @@ export function buildPostBody(config, post) {
  * sitemap virava o único caminho de descoberta.
  */
 export function buildBlogIndexBody(config, posts) {
+  const { shell: SHELL_STYLE, muted: MUTED } = resolveFallbackPalette(config);
   const identification = professionalIdentityHtml(config);
   const items = selectPublicPosts(posts)
     .sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))

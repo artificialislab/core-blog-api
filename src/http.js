@@ -58,3 +58,9 @@ export function parseOptionalDate(value) {
   }
   return { provided: true, value: date };
 }
+
+/** Ativa projeção resumida (sem coluna content) em GET /posts?summary=1. */
+export function isSummaryQuery(query = {}) {
+  const raw = Array.isArray(query?.summary) ? query.summary[0] : query?.summary;
+  return raw === '1' || raw === 'true';
+}
