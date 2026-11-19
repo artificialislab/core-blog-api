@@ -4,6 +4,36 @@
  * circular entre as rotas e src/seo/refresh.js.
  */
 
+/**
+ * Contagem de palavras em SQL PostgreSQL equivalente a stripMarkup + split(/\s+/)
+ * do cliente React (180 palavras/min), fixando explicitamente os 25 code points
+ * de WhiteSpace + LineTerminator do ECMAScript independentemente de LC_CTYPE/ICU.
+ */
+export const SUMMARY_WORD_COUNT_SQL = `coalesce(
+  array_length(
+    regexp_split_to_array(
+      nullif(
+        btrim(
+          regexp_replace(
+            regexp_replace(
+              regexp_replace(coalesce(content, ''), '<[^>]+>', ' ', 'g'),
+              '[#*_>\`-]', ' ', 'g'
+            ),
+            E'[\\\\u0009-\\\\u000d\\\\u0020\\\\u00a0\\\\u1680\\\\u2000-\\\\u200a\\\\u2028\\\\u2029\\\\u202f\\\\u205f\\\\u3000\\\\ufeff]+', ' ', 'g'
+          ),
+          ' '
+        ),
+        ''
+      ),
+      ' '
+    ),
+    1
+  ),
+  0
+) as word_count`;
+
+export const SUMMARY_COLUMNS = `id, slug, title, excerpt, cover, category, tags, status, published_at, created_at, updated_at, seo, ${SUMMARY_WORD_COUNT_SQL}`;
+
 /** Estima tempo de leitura com a mesma regra do cliente React (180 palavras/min). */
 export function estimateReadTime(contentOrWords) {
   const words = typeof contentOrWords === 'number' && Number.isFinite(contentOrWords)

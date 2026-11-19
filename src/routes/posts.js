@@ -6,7 +6,7 @@ import {
   asyncHandler, isSummaryQuery, isUuid, parseAdminListFilters, parseOptionalDate, POST_STATUSES,
 } from '../http.js';
 import { sanitizeHtml, sanitizePlainText } from '../sanitizeHtml.js';
-import { rowToPost, rowToSummaryPost } from '../postShape.js';
+import { SUMMARY_COLUMNS, rowToPost, rowToSummaryPost } from '../postShape.js';
 import { scheduleSeoRefresh } from '../seo/refresh.js';
 
 const router = Router();
@@ -120,30 +120,6 @@ async function publishDueScheduledPosts() {
 // ───────────────────────────────────────────────────────────────
 // PÚBLICO — só retorna posts com status=published e data passada
 // ───────────────────────────────────────────────────────────────
-
-const SUMMARY_WORD_COUNT_SQL = `coalesce(
-  array_length(
-    regexp_split_to_array(
-      nullif(
-        btrim(
-          regexp_replace(
-            regexp_replace(
-              regexp_replace(coalesce(content, ''), '<[^>]+>', ' ', 'g'),
-              '[#*_>\`-]', ' ', 'g'
-            ),
-            E'[\\\\s\\\\u00a0]+', ' ', 'g'
-          )
-        ),
-        ''
-      ),
-      ' '
-    ),
-    1
-  ),
-  0
-) as word_count`;
-
-const SUMMARY_COLUMNS = `id, slug, title, excerpt, cover, category, tags, status, published_at, created_at, updated_at, seo, ${SUMMARY_WORD_COUNT_SQL}`;
 
 router.get('/', asyncHandler(async (req, res) => {
   await publishDueScheduledPosts();
