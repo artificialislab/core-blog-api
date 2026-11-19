@@ -64,6 +64,7 @@ export function normalizeSeoConfig(raw) {
     homeLabel: raw.homeLabel || 'Início',
     defaultImage: raw.defaultImage || '',
     indexRobots: raw.indexRobots || '',
+    fallbackTheme: raw.fallbackTheme === 'light' ? 'light' : 'dark',
     titleSuffix: raw.titleSuffix || '',
     titleSuffixMaxLength: Number(raw.titleSuffixMaxLength || 54),
     schemaIds: raw.schemaIds && typeof raw.schemaIds === 'object' ? raw.schemaIds : {},

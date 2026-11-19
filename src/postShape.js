@@ -23,3 +23,11 @@ export function rowToPost(r) {
     seo: r.seo || {},
   };
 }
+
+/** Projeção resumida para listagens públicas (?summary=1), sem trafegar o corpo HTML. */
+export function rowToSummaryPost(r) {
+  if (!r) return null;
+  const full = rowToPost(r);
+  delete full.content;
+  return full;
+}
